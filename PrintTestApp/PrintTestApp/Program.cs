@@ -8,8 +8,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using CommandLine;
+using CommandLine.Text;
+
+using Newtonsoft.Json;
+
 namespace PrintTestApp
 {
+    class Options
+    {
+        [Option('f', "file", HelpText="Input file to read.")]
+        public string InputFile { get; set; }
+
+        [Option("defaultPrinter", DefaultValue = true, HelpText ="Use the default printer.")]
+        public bool DefaultPrinter { get; set; }
+
+        [Option("print", DefaultValue = true, HelpText ="Print the file.")]
+        public bool Print { get; set; }
+    }
+
     class Program
     {
         static List<Card> cards;
@@ -18,38 +35,114 @@ namespace PrintTestApp
 
         static void Main(string[] args)
         {
-            // Get list of cards
+            var options = new Options();
+            Parser parser = new Parser();
+            bool success = true;
 
-            cards = new List<Card>()
-            {
-                new Card() { Name = "Darkside Sword Master", Count = 4, Uri = "http://vignette4.wikia.nocookie.net/cardfight/images/8/83/G-BT05-021EN-RR.png/revision/latest?cb=20160120182915" },
-                new Card() { Name = "Masquerade Bunny", Count = 4, Uri = "http://vignette2.wikia.nocookie.net/cardfight/images/a/a9/G-BT05-038EN-R.png/revision/latest?cb=20160120184358" },
-                new Card() { Name = "Hoop Master", Count = 4, Uri = "http://vignette2.wikia.nocookie.net/cardfight/images/7/7d/G-BT06-018EN-RR.png/revision/latest?cb=20160317064603" },
-                new Card() { Name = "Darkside Mirror Master", Count = 4, Uri = "http://vignette4.wikia.nocookie.net/cardfight/images/a/ae/G-BT05-020EN-RR.png/revision/latest?cb=20160120182843" }
-            };
+            cards = new List<Card>();
             images = new List<Image>();
 
-            // Download images for cards
-            foreach(var card in cards)
+            if (parser.ParseArguments(args, options))
             {
-                card.FileName = card.Name.Replace(' ', '_') + ".png";
-                DownloadRemoteImage(card.Uri, card.FileName);
-
-                Image image = Image.FromFile(card.FileName);
-                for (int i = 0; i < card.Count; i++) images.Add(image);
+                success = GetCardList(options.InputFile);
+                if (success) success = DownloadCards();
+                if (success) PrintCards();
+            }
+            else
+            {
+                Console.WriteLine("Failed to parse options...");
             }
 
-            // print document
+            Console.Read();
+        }
+
+        private static bool GetCardList(string fileName)
+        {
+            bool success = false;
+
+            Console.Write("Loading Cards...");
+
+            List<Exception> errors = new List<Exception>();
+
+            success = File.Exists(fileName);
+
+            if (!success)
+            {
+                Console.WriteLine("\tFile {0} does not exist.", fileName);
+                return success;
+            }
+
+            using(var stream = File.OpenRead(fileName))
+            {
+                byte[] data = new byte[stream.Length];
+                stream.Read(data, 0, (int)stream.Length);
+                string dataString = Encoding.UTF8.GetString(data);
+                try
+                {
+                    var output = JsonConvert.DeserializeObject<List<Card>>(dataString);
+                    cards.AddRange(output);
+                }
+                catch (JsonReaderException jre)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(jre.Message);
+                    Console.WriteLine(jre.StackTrace);
+                }
+            }
+
+            Console.WriteLine("\tDone!");
+            return success;
+        }
+
+        private static bool DownloadCards()
+        {
+            bool success = true;
+
+            Console.Write("Downloading images...");
+
+            try
+            {
+                foreach (var card in cards)
+                {
+                    card.FileName = card.Name.Replace(' ', '_') + ".png";
+                    DownloadRemoteImage(card.Uri, card.FileName);
+
+                    Image image = Image.FromFile(card.FileName);
+                    for (int i = 0; i < card.Count; i++) images.Add(image);
+                }
+
+                Console.WriteLine("\tDone!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine();
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
+                success = false;
+            }
+
+            return success;
+        }
+
+        private static void PrintCards()
+        {
+            Console.Write("Printing cards...");
+
             PrintDocument document = new PrintDocument();
             iterator = images.GetEnumerator();
 
             document.PrintPage += Document_PrintPage;
+            document.EndPrint += Document_EndPrint;
+
             if (iterator.MoveNext())
             {
                 document.Print();
             }
+        }
 
-            Console.Read();
+        private static void Document_EndPrint(object sender, PrintEventArgs e)
+        {
+            Console.WriteLine("\tDone!");
         }
 
         private static void Document_PrintPage(object sender, PrintPageEventArgs args)
@@ -64,6 +157,7 @@ namespace PrintTestApp
             {
                 var image = iterator.Current;
                 args.Graphics.DrawImage(image, rect);
+                moreCards = iterator.MoveNext();
                 rect.X += width;
                 if (rect.X + width > maxX)
                 {
@@ -74,7 +168,6 @@ namespace PrintTestApp
                         break;
                     }
                 }
-                moreCards = iterator.MoveNext();
             } while (moreCards);
 
             args.HasMorePages = moreCards;
