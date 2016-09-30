@@ -7,6 +7,11 @@
         xmlns:tmd="clr-namespace:TalkerMakerDeluxe"
         mc:Ignorable="d"
         Title="CFV Proxy Printer" Height="480" Width="600">
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Save" CanExecute="SaveCommand_CanExecute" Executed="SaveCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.SaveAs" CanExecute="SaveAsCommand_CanExecute" Executed="SaveAsCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Close" CanExecute="ExitCommand_CanExecute" Executed="ExitCommand_Executed" />
+    </Window.CommandBindings>
     <Window.Resources>
         <DataTemplate x:Key="CardDataTemplate">
             <Grid>
@@ -47,22 +52,29 @@
                         Content="X"
                         Click="RemoveCard_Click" />
                 </StackPanel>
-                
+
             </Grid>
         </DataTemplate>
     </Window.Resources>
     <Grid>
-        <Menu x:Name="menu" HorizontalAlignment="Left" VerticalAlignment="Top">
+        <Menu x:Name="menu" VerticalAlignment="Top" Margin="0,0,0,0">
             <MenuItem Header="File">
-                <!--<MenuItem Header="New" Click="MenuItem_Click" />-->
-                <MenuItem Header="Open" Click="OpenItem_Click"/>
-                <MenuItem Header="Save" Click="SaveItem_Click "/>
-                <MenuItem Header="Save As..." Click="SaveAsItem_Click"/>
-                <tmd:RecentFileList x:Name="RecentFileList" />
+                <MenuItem Header="New" Click="NewItem_Click" InputGestureText="Ctrl + N">
+                </MenuItem>
+                <MenuItem Header="_Open" Click="OpenItem_Click" InputGestureText="Ctrl + O">
+                    <MenuItem.InputBindings>
+                        <KeyBinding Key="O" Modifiers="Ctrl" />
+                    </MenuItem.InputBindings>
+                </MenuItem>
+                <MenuItem Header="_Save" Command="ApplicationCommands.Save" InputGestureText="Ctrl + S"/>
+                <MenuItem Header="Save As..." Command="ApplicationCommands.SaveAs" InputGestureText="Ctrl + Shft + S"/>
+                <MenuItem Header="Recent Files">
+                    <tmd:RecentFileList x:Name="RecentFileList" />
+                </MenuItem>
+                <MenuItem Header="Print Preview" Click="PrintPreviewItem_Click" />
                 <MenuItem Header="Print" Click="PrintItem_Click"/>
-                <!--<MenuItem Header="Print Preview" Click="MenuItem_Click" />-->
                 <Separator />
-                <MenuItem Header="Close" Click="MenuItem_Click"/>
+                <MenuItem Header="Exit" Command="ApplicationCommands.Close" InputGestureText="Alt + F4"/>
             </MenuItem>
             <MenuItem Header="Edit">
                 <MenuItem x:Name="undoMenuItem" Header="Undo" IsEnabled="False" Click="UndoMenuItem_Click"/>

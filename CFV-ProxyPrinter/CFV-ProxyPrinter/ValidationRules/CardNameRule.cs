@@ -12,7 +12,7 @@ namespace CFV_ProxyPrinter
     {
         public override ValidationResult Validate(object value, CultureInfo cultureInfo)
         {
-            if (String.IsNullOrWhiteSpace((String)value))
+            if (string.IsNullOrWhiteSpace((string)value))
             {
                 return new ValidationResult(false, "The card must have a name.");
             }

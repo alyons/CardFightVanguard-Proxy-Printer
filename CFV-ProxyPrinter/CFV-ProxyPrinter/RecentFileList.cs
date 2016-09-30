@@ -140,7 +140,7 @@ namespace TalkerMakerDeluxe
 
             string shortPath = ShortenPathname(displaypath, MaxPathLength);
 
-            return String.Format(format, index, filepath, shortPath);
+            return string.Format(format, index, filepath, shortPath);
         }
 
         // This method is taken from Joe Woodbury's article at: http://www.codeproject.com/KB/cs/mrutoolstripmenu.aspx
@@ -323,7 +323,7 @@ namespace TalkerMakerDeluxe
         {
             string filepath = GetFilepath(menuItem);
 
-            if (String.IsNullOrEmpty(filepath)) return;
+            if (string.IsNullOrEmpty(filepath)) return;
 
             EventHandler<MenuClickEventArgs> dMenuClick = MenuClick;
             if (dMenuClick != null) dMenuClick(menuItem, new MenuClickEventArgs(filepath));
@@ -335,7 +335,7 @@ namespace TalkerMakerDeluxe
                 if (r.MenuItem == menuItem)
                     return r.Filepath;
 
-            return String.Empty;
+            return string.Empty;
         }
 
         //-----------------------------------------------------------------------------------------
@@ -361,11 +361,11 @@ namespace TalkerMakerDeluxe
             {
                 try
                 {
-                    Title = String.Empty;
-                    CompanyName = String.Empty;
-                    Copyright = String.Empty;
-                    ProductName = String.Empty;
-                    Version = String.Empty;
+                    Title = string.Empty;
+                    CompanyName = string.Empty;
+                    Copyright = string.Empty;
+                    ProductName = string.Empty;
+                    Version = string.Empty;
 
                     _Assembly = Assembly.GetEntryAssembly();
 
@@ -429,7 +429,7 @@ namespace TalkerMakerDeluxe
                 {
                     string filename = (string)k.GetValue(Key(i));
 
-                    if (String.IsNullOrEmpty(filename)) break;
+                    if (string.IsNullOrEmpty(filename)) break;
 
                     list.Add(filename);
                 }
@@ -555,7 +555,7 @@ namespace TalkerMakerDeluxe
             void CopyExcluding(List<string> source, string exclude, List<string> target, int max)
             {
                 foreach (string s in source)
-                    if (!String.IsNullOrEmpty(s))
+                    if (!string.IsNullOrEmpty(s))
                         if (!s.Equals(exclude, StringComparison.OrdinalIgnoreCase))
                             if (target.Count < max)
                                 target.Add(s);
@@ -595,7 +595,7 @@ namespace TalkerMakerDeluxe
 
             SmartStream OpenStream(FileMode mode)
             {
-                if (!String.IsNullOrEmpty(Filepath))
+                if (!string.IsNullOrEmpty(Filepath))
                 {
                     return new SmartStream(Filepath, mode);
                 }

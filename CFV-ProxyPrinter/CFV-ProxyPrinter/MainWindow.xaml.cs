@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -29,13 +30,16 @@ namespace CFV_ProxyPrinter
         #region Variables
         bool unsavedChanges = false;
         Command lastCommand;
+        bool fromRedo = false;
         Stack<UndoableCommand> undoStack = new Stack<UndoableCommand>();
         Stack<UndoableCommand> redoStack = new Stack<UndoableCommand>();
+        IEnumerator<System.Drawing.Image> iterator;
+        List<System.Drawing.Image> images;
         #endregion
 
         #region Properties
         public ObservableList<Card> Cards { get; set; }
-        public String FilePath { get; set; }
+        public string FilePath { get; set; }
         public bool UnsavedChanges
         {
             get { return unsavedChanges; }
@@ -44,10 +48,7 @@ namespace CFV_ProxyPrinter
                 if (unsavedChanges != value)
                 {
                     unsavedChanges = value;
-                    if (unsavedChanges)
-                        Title = Title + ((Title.Contains(" *")) ? "" : " *");
-                    else
-                        Title.Replace(" *", "");
+                    SetTitle();
                 }
             }
         }
@@ -70,13 +71,112 @@ namespace CFV_ProxyPrinter
 
         #region Methods
 
+        #region Application Commands
+        private void NewCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        private void NewCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void OpenCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        private void OpenCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        // Save Command
+        private void SaveCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Cards.Count > 0 && !string.IsNullOrWhiteSpace(FilePath);
+        }
+        private void SaveCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            SaveFile(FilePath);
+        }
+
+
+        // Save As Command
+        private void SaveAsCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Cards.Count > 0;
+        }
+        private void SaveAsCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            System.Windows.Forms.SaveFileDialog saveDialog = new System.Windows.Forms.SaveFileDialog();
+            saveDialog.Filter = "JSON (*.json)|*.json";
+            saveDialog.DefaultExt = ".json";
+            saveDialog.Title = "Save proxy list";
+            saveDialog.ShowDialog();
+
+            if (saveDialog.FileName != "")
+            {
+                FilePath = saveDialog.FileName;
+                SaveFile(FilePath);
+            }
+        }
+
+        private void PrintPreviewCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        private void PrintPreviewCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void PrintCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        private void PrintCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        // Exit Command
+        private void ExitCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = true;
+        }
+        private void ExitCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (UnsavedChanges)
+            {
+                var result = MessageBox.Show("There are unsaved changes. Would you like to still close the application? (The pending changes will be lost)", "Closing Application", MessageBoxButton.OKCancel);
+                if (result == MessageBoxResult.OK)
+                {
+                    Close();
+                }
+            }
+            else
+            {
+                Close();
+            }
+        }
+        #endregion
+
         #region Menu Items
         private void MenuItem_Click(object sender, RoutedEventArgs e)
         {
             MenuItem item = sender as MenuItem;
-            this.Title = "Info: " + item.Header;
+            Title = "Info: " + item.Header;
         }
 
+        private void NewItem_Click(object sender, RoutedEventArgs e)
+        {
+            Cards.Clear();
+            cardListView.Items.Refresh();
+            FilePath = null;
+            undoStack.Clear();
+            redoStack.Clear();
+            UnsavedChanges = false;
+        }
         private void OpenItem_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new System.Windows.Forms.OpenFileDialog();
@@ -90,7 +190,6 @@ namespace CFV_ProxyPrinter
 
             LoadFile(FilePath);
         }
-        
         private void SaveItem_Click(object sender, RoutedEventArgs e)
         {
             SaveFile(FilePath);
@@ -112,7 +211,11 @@ namespace CFV_ProxyPrinter
 
         private void PrintItem_Click(object sender, RoutedEventArgs e)
         {
-
+            Print();
+        }
+        private void PrintPreviewItem_Click(object sender, RoutedEventArgs e)
+        {
+            PrintPreview();
         }
 
         private void AddCardItem_Click(object sender, RoutedEventArgs e)
@@ -121,7 +224,6 @@ namespace CFV_ProxyPrinter
             addDialog.Closed += AddDialog_Closed;
             addDialog.ShowDialog();
         }
-
         private void AddDialog_Closed(object sender, EventArgs e)
         {
             AddCardWindow addDialog = sender as AddCardWindow;
@@ -186,7 +288,6 @@ namespace CFV_ProxyPrinter
         }
 
         #endregion
-
         #region Helper Methods
         private bool LoadFile(string fileName)
         {
@@ -214,7 +315,7 @@ namespace CFV_ProxyPrinter
                     var output = JsonConvert.DeserializeObject<List<Card>>(dataString);
                     Cards.AddRange(output);
                     foreach (Card item in Cards) item.PropertyChanged += SingleCardChanged;
-                    Title = String.Format("CFV Proxy Printer - {0}", System.IO.Path.GetFileNameWithoutExtension(fileName));
+                    SetTitle();
                     Console.WriteLine("\tDone!");
                 }
                 catch (JsonReaderException jre)
@@ -240,7 +341,6 @@ namespace CFV_ProxyPrinter
             {
                 var data = JsonConvert.SerializeObject(Cards);
                 File.WriteAllText(FilePath, data);
-                Title = "CFV Proxy Printer";
                 UnsavedChanges = false;
             }
             catch (ArgumentNullException) { System.Windows.Forms.MessageBox.Show("Cannot save file: Path is null. Try changing the name or location before saving again."); }
@@ -249,6 +349,14 @@ namespace CFV_ProxyPrinter
             catch (PathTooLongException) { System.Windows.Forms.MessageBox.Show("Cannot save file: Path too long. Try changing the name or location before saving again."); }
             catch (IOException) { System.Windows.Forms.MessageBox.Show("Cannot save file: Couldn't open the file. Make sure the file isn't in use and try again."); }
 
+        }
+
+        private void SetTitle()
+        {
+            Title = "CFV Proxy Printer";
+
+            if (!string.IsNullOrWhiteSpace(FilePath)) Title += " - " + System.IO.Path.GetFileNameWithoutExtension(FilePath);
+            if (UnsavedChanges) Title += " *";
         }
 
         // Undo and Redo
@@ -272,6 +380,7 @@ namespace CFV_ProxyPrinter
         {
             if (redoStack.Count > 0)
             {
+                fromRedo = true;
                 Command cmd = redoStack.Pop();
                 ExecuteCommand(cmd);
             }
@@ -288,17 +397,52 @@ namespace CFV_ProxyPrinter
             {
                 undoStack.Push((UndoableCommand)lastCommand);
                 lastCommand = null;
-                redoStack.Clear();
+                if (!fromRedo) redoStack.Clear();
                 CheckUndoRedoStatus();
+                fromRedo = false;
             }
         }
 
         // Printing Things
         private void Print()
         {
+            DownloadImages();
+
+            PrintDocument document = new PrintDocument();
+            iterator = images.GetEnumerator();
+
+            document.PrintPage += Document_PrintPage;
+
+            System.Windows.Forms.PrintDialog printDialog = new System.Windows.Forms.PrintDialog();
+            printDialog.Document = document;
+            if (printDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                if (iterator.MoveNext())
+                {
+                    document.Print();
+                }
+            }
+        }
+        private void PrintPreview()
+        {
+            DownloadImages();
+
+            PrintDocument document = new PrintDocument();
+            iterator = images.GetEnumerator();
+
+            document.PrintPage += Document_PrintPage;
+
+            System.Windows.Forms.PrintPreviewDialog printPreviewDialog = new System.Windows.Forms.PrintPreviewDialog();
+            if (iterator.MoveNext())
+            {
+                printPreviewDialog.Document = document;
+                printPreviewDialog.ShowDialog();
+            }
+        }
+        private bool DownloadImages()
+        {
             bool success = true;
-            List<System.Drawing.Image> images = new List<System.Drawing.Image>();
-            #region
+            images = new List<System.Drawing.Image>();
             try
             {
                 foreach (var card in Cards)
@@ -310,7 +454,7 @@ namespace CFV_ProxyPrinter
                     for (int i = 0; i < card.Count; i++) images.Add(image);
                 }
 
-                Console.WriteLine("\tDone!");
+                success = true;
             }
             catch (Exception e)
             {
@@ -323,9 +467,35 @@ namespace CFV_ProxyPrinter
             if (!success)
             {
                 System.Windows.Forms.MessageBox.Show("Cannot print file: Failed to download all images.");
-                return;
             }
-            #endregion
+            return success;
+        }
+        private void Document_PrintPage(object sender, PrintPageEventArgs args)
+        {
+            int width = 231;
+            int height = 338;
+            int maxX = 838;
+            int maxY = 1088;
+            System.Drawing.Rectangle rect = new System.Drawing.Rectangle(0, 0, width, height);
+            bool moreCards = true;
+            do
+            {
+                var image = iterator.Current;
+                args.Graphics.DrawImage(image, rect);
+                moreCards = iterator.MoveNext();
+                rect.X += width;
+                if (rect.X + width > maxX)
+                {
+                    rect.X = 0;
+                    rect.Y += height;
+                    if (rect.Y + height > maxY)
+                    {
+                        break;
+                    }
+                }
+            } while (moreCards);
+
+            args.HasMorePages = moreCards;
         }
         private void DownloadRemoteImage(string uri, string fileName)
         {

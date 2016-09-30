@@ -9,20 +9,20 @@ namespace CFV_ProxyPrinter
     public class Card : ViewModelBase
     {
         #region Variables
-        private String name;
+        private string name;
         private int count;
-        private String uri;
+        private string uri;
         #endregion
 
         #region Properties
-        public String Name
+        public string Name
         {
             get { return name; }
             set
             {
                 name = value;
                 OnPropertyChanged("Name");
-                if (!String.IsNullOrWhiteSpace(name))
+                if (!string.IsNullOrWhiteSpace(name))
                 {
                     FileName = name.Replace(' ', '_') + ".png";
                 }
@@ -40,7 +40,7 @@ namespace CFV_ProxyPrinter
                 }
             }
         }
-        public String Uri
+        public string Uri
         {
             get { return uri; }
             set
@@ -52,7 +52,7 @@ namespace CFV_ProxyPrinter
                 }
             }
         }
-        public String FileName { get; set; }
+        public string FileName { get; set; }
         #endregion
 
         #region Constructors

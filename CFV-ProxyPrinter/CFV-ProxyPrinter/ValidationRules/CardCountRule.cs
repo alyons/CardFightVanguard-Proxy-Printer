@@ -20,7 +20,7 @@ namespace CFV_ProxyPrinter
 			try
             {
                 if (((string)value).Length > 0)
-                    count = Int32.Parse((String)value);
+                    count = Int32.Parse((string)value);
             }
 			catch (Exception e)
             {
